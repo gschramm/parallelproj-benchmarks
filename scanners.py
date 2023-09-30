@@ -640,12 +640,12 @@ class GEDiscoveryMI(RegularPolygonPETScannerGeometry):
                          ring_positions=ring_positions,
                          symmetry_axis=symmetry_axis)
 
+
 class PETCoincidenceDescriptor(abc.ABC):
     """abstract base class to describe which modules / indices in modules of a 
        modularized PET scanner are in coincidence; defining geometrical LORs"""
 
-    def __init__(self,
-                 scanner: ModularizedPETScannerGeometry) -> None:
+    def __init__(self, scanner: ModularizedPETScannerGeometry) -> None:
         """
         Parameters
         ----------
@@ -668,8 +668,6 @@ class PETCoincidenceDescriptor(abc.ABC):
     def dev(self) -> str:
         """device to use for storing the LOR endpoints"""
         return self.scanner.dev
-
-
 
 
 class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
@@ -723,13 +721,19 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         """setup the start / end plane indices (similar to a Michelogram)
         """
         self._start_plane_index = self.xp.arange(self.scanner.num_rings,
-                                            dtype=self.xp.int32, device=self.dev)
+                                                 dtype=self.xp.int32,
+                                                 device=self.dev)
         self._end_plane_index = self.xp.arange(self.scanner.num_rings,
-                                          dtype=self.xp.int32, device=self.dev)
+                                               dtype=self.xp.int32,
+                                               device=self.dev)
 
         for i in range(1, self._max_ring_difference + 1):
-            tmp1 = self.xp.arange(self.scanner.num_rings - i, dtype=self.xp.int16, device=self.dev)
-            tmp2 = self.xp.arange(self.scanner.num_rings - i, dtype=self.xp.int16, device=self.dev) + i
+            tmp1 = self.xp.arange(self.scanner.num_rings - i,
+                                  dtype=self.xp.int16,
+                                  device=self.dev)
+            tmp2 = self.xp.arange(self.scanner.num_rings - i,
+                                  dtype=self.xp.int16,
+                                  device=self.dev) + i
 
             self._start_plane_index = self.xp.concat(
                 (self._start_plane_index, tmp1, tmp2))
@@ -743,25 +747,34 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         """
         n = self.scanner.num_lor_endpoints_per_ring
 
-        m = 2*(n//2)
+        m = 2 * (n // 2)
 
-        self._start_in_ring_index = self.xp.zeros((self._num_views, self._num_rad),
-                                             dtype=self.xp.int32, device = self.dev)
-        self._end_in_ring_index = self.xp.zeros((self._num_views, self._num_rad),
-                                           dtype=self.xp.int32, device = self.dev)
+        self._start_in_ring_index = self.xp.zeros(
+            (self._num_views, self._num_rad),
+            dtype=self.xp.int32,
+            device=self.dev)
+        self._end_in_ring_index = self.xp.zeros(
+            (self._num_views, self._num_rad),
+            dtype=self.xp.int32,
+            device=self.dev)
 
         for view in np.arange(self._num_views):
             self._start_in_ring_index[view, :] = (
-                self.xp.concat((self.xp.arange(m) // 2, self.xp.asarray([n // 2]))) -
+                self.xp.concat(
+                    (self.xp.arange(m) // 2, self.xp.asarray([n // 2]))) -
                 view)[self._radial_trim:-self._radial_trim]
             self._end_in_ring_index[view, :] = (
-                self.xp.concat((self.xp.asarray([-1]), 
-                                     -((self.xp.arange(m) + 4) // 2))) -
+                self.xp.concat(
+                    (self.xp.asarray([-1]), -((self.xp.arange(m) + 4) // 2))) -
                 view)[self._radial_trim:-self._radial_trim]
 
         # shift the negative indices
-        self._start_in_ring_index = self.xp.where(self._start_in_ring_index >= 0, self._start_in_ring_index, self._start_in_ring_index + n)
-        self._end_in_ring_index = self.xp.where(self._end_in_ring_index >= 0, self._end_in_ring_index, self._end_in_ring_index + n)
+        self._start_in_ring_index = self.xp.where(
+            self._start_in_ring_index >= 0, self._start_in_ring_index,
+            self._start_in_ring_index + n)
+        self._end_in_ring_index = self.xp.where(self._end_in_ring_index >= 0,
+                                                self._end_in_ring_index,
+                                                self._end_in_ring_index + n)
 
     def show_view(self,
                   ax: plt.Axes,
@@ -786,17 +799,24 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         start_inds = self._start_in_ring_index[view, :]
         end_inds = self._end_in_ring_index[view, :]
 
-        start_ring = self.xp.full(start_inds.shape, int(self._start_plane_index[plane]))
-        end_ring = self.xp.full(end_inds.shape, int(self._end_plane_index[plane]))
+        start_ring = self.xp.full(start_inds.shape,
+                                  int(self._start_plane_index[plane]),
+                                  device=self.dev)
+        end_ring = self.xp.full(end_inds.shape,
+                                int(self._end_plane_index[plane]),
+                                device=self.dev)
 
-        p1s = np.asarray(to_device(self.scanner.get_lor_endpoints(start_ring, start_inds), 'cpu'))
-        p2s = np.asarray(to_device(self.scanner.get_lor_endpoints(end_ring, end_inds), 'cpu'))
+        p1s = np.asarray(
+            to_device(self.scanner.get_lor_endpoints(start_ring, start_inds),
+                      'cpu'))
+        p2s = np.asarray(
+            to_device(self.scanner.get_lor_endpoints(end_ring, end_inds),
+                      'cpu'))
 
         ls = np.hstack([p1s, p2s]).copy()
         ls = ls.reshape((-1, 2, 3))
         lc = Line3DCollection(ls, linewidths=lw, **kwargs)
         ax.add_collection(lc)
-
 
 
 if __name__ == '__main__':
@@ -808,7 +828,8 @@ if __name__ == '__main__':
     #dev = 'cuda'
 
     scanner = GEDiscoveryMI(xp, dev, num_rings=9)
-    coinc_desc = RegularPolygonPETCoincidenceDescriptor(scanner, radial_trim=87)
+    coinc_desc = RegularPolygonPETCoincidenceDescriptor(scanner,
+                                                        radial_trim=87)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -816,4 +837,3 @@ if __name__ == '__main__':
     coinc_desc.show_view(ax, 0, 0, lw=0.1, color='b')
     coinc_desc.show_view(ax, 50, 0, lw=0.1, color='r')
     fig.show()
-
