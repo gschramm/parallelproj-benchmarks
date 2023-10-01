@@ -867,13 +867,13 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
 
         if sinogram_order is not SinogramSpatialAxisOrder.PVR:
             if sinogram_order is SinogramSpatialAxisOrder.RVP:
-                new_order = (1, 2, 0)
+                new_order = (2, 1, 0)
             elif sinogram_order is SinogramSpatialAxisOrder.RPV:
-                new_order = (1, 0, 2)
-            elif sinogram_order is SinogramSpatialAxisOrder.VRP:
-                new_order = (1, 0, 2)
-            elif sinogram_order is SinogramSpatialAxisOrder.VPR:
                 new_order = (2, 0, 1)
+            elif sinogram_order is SinogramSpatialAxisOrder.VRP:
+                new_order = (1, 2, 0)
+            elif sinogram_order is SinogramSpatialAxisOrder.VPR:
+                new_order = (1, 0, 2)
             elif sinogram_order is SinogramSpatialAxisOrder.PRV:
                 new_order = (0, 2, 1)
 
