@@ -641,7 +641,7 @@ class GEDiscoveryMI(RegularPolygonPETScannerGeometry):
                          symmetry_axis=symmetry_axis)
 
 
-class PETCoincidenceDescriptor(abc.ABC):
+class PETLORDescriptor(abc.ABC):
     """abstract base class to describe which modules / indices in modules of a 
        modularized PET scanner are in coincidence; defining geometrical LORs"""
 
@@ -675,7 +675,7 @@ class PETCoincidenceDescriptor(abc.ABC):
         return self.scanner.dev
 
 
-class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
+class RegularPolygonPETLORDescriptor(PETLORDescriptor):
 
     def __init__(
         self,
@@ -922,7 +922,7 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         lc = Line3DCollection(ls, linewidths=lw, **kwargs)
         ax.add_collection(lc)
 
-class GEDiscoveryMICoincidenceDescriptor(RegularPolygonPETCoincidenceDescriptor
+class GEDiscoveryMILORDescriptor(RegularPolygonPETLORDescriptor
                                          ):
 
     def __init__(self,

@@ -2,14 +2,14 @@ import matplotlib.pyplot as plt
 import scanners
 
 if __name__ == '__main__':
-    #import numpy.array_api as xp
-    import array_api_compat.torch as xp
+    import numpy.array_api as xp
+    #import array_api_compat.torch as xp
     #import array_api_compat.cupy as xp
 
     dev = 'cpu'
     #dev = 'cuda'
 
-    coinc_des = scanners.GEDiscoveryMICoincidenceDescriptor(xp, dev)
+    coinc_des = scanners.GEDiscoveryMILORDescriptor(xp, dev)
 
 
     fig = plt.figure()
