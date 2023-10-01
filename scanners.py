@@ -654,6 +654,11 @@ class PETCoincidenceDescriptor(abc.ABC):
         """
         self._scanner = scanner
 
+    @abc.abstractmethod
+    def get_lor_coordinates(self, **kwargs) -> tuple[npt.ArrayLike, npt.ArrayLike]:
+        """return the start and end coordinates of all (or a subset of) LORs"""
+        raise NotImplementedError
+
     @property
     def scanner(self) -> ModularizedPETScannerGeometry:
         """the scanner for which coincidences are described"""
@@ -677,8 +682,6 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         scanner: RegularPolygonPETScannerGeometry,
         radial_trim: int = 3,
         max_ring_difference: int | None = None,
-        sinogram_spatial_axis_order:
-        SinogramSpatialAxisOrder = SinogramSpatialAxisOrder.RVP
     ) -> None:
         """Coincidence descriptor for a regular polygon PET scanner where
            we have coincidences within and between "rings (polygons of modules)" 
@@ -694,9 +697,6 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         max_ring_difference : int | None, optional
             maximim ring difference to consider for coincidences, by default None means
             all ring differences are included
-        sinogram_spatial_axis_order : SinogramSpatialAxisOrder, optional
-            order of the spatial axis in the sinogram, by default SinogramSpatialAxisOrder.RVP
-            which means "planes", "views", "radial"
         """
 
         super().__init__(scanner)
@@ -712,10 +712,8 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
                          1) - 2 * self._radial_trim
         self._num_views = self.scanner.num_lor_endpoints_per_ring // 2
 
-        self._sinogram_spatial_axis_order = sinogram_spatial_axis_order
-
-        self.setup_plane_indices()
-        self.setup_view_indices()
+        self._setup_plane_indices()
+        self._setup_view_indices()
 
     @property
     def radial_trim(self) -> int:
@@ -762,13 +760,7 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         """end index within ring for all views - shape (num_view, num_rad)"""
         return self._end_in_ring_index
 
-    @property
-    def sinogram_spatial_axis_order(self) -> SinogramSpatialAxisOrder:
-        """spatial axis order of the sinogram"""
-        return self._sinogram_spatial_axis_order
-
-
-    def setup_plane_indices(self) -> None:
+    def _setup_plane_indices(self) -> None:
         """setup the start / end plane indices (similar to a Michelogram)
         """
         self._start_plane_index = self.xp.arange(self.scanner.num_rings,
@@ -793,7 +785,7 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
 
         self._num_planes = self._start_plane_index.shape[0]
 
-    def setup_view_indices(self) -> None:
+    def _setup_view_indices(self) -> None:
         """setup the start / end view indices
         """
         n = self.scanner.num_lor_endpoints_per_ring
@@ -827,10 +819,77 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
                                                 self._end_in_ring_index,
                                                 self._end_in_ring_index + n)
 
-    def show_view(self,
+    def get_lor_coordinates(self, views: None | npt.ArrayLike = None, sinogram_order = SinogramSpatialAxisOrder.RVP) -> tuple[npt.ArrayLike, npt.ArrayLike]:
+        """return the start and end coordinates of all LORs / or a subset of views
+
+        Parameters
+        ----------
+        views : None | npt.ArrayLike, optional
+            the views to consider, by default None means all views
+        sinogram_order : SinogramSpatialAxisOrder, optional
+            the order of the sinogram axes, by default SinogramSpatialAxisOrder.RVP
+
+        Returns
+        -------
+        tuple[npt.ArrayLike, npt.ArrayLike]
+            the start and end coordinates of all LORs / or a subset of views
+            shape (:,:,:,3)
+        """        
+
+        if views is None:
+            views = self.xp.arange(self.num_views)
+
+        # setup the module and in_module (in_ring) indices for all LORs in PVR order 
+        start_inring_inds = self.xp.reshape(self.xp.take(self.start_in_ring_index, views, axis=0), (-1,))
+        end_inring_inds = self.xp.reshape(self.xp.take(self.end_in_ring_index, views, axis=0), (-1,))
+
+        start_mods, start_inds = self.xp.meshgrid(self.start_plane_index, start_inring_inds, indexing='ij')
+        end_mods, end_inds = self.xp.meshgrid(self.end_plane_index, end_inring_inds, indexing='ij')
+
+        # reshape to PVR dimensions (radial moving fastest, planes moving slowest)
+        sinogram_spatial_shape = (self.num_planes, views.shape[0], self.num_rad)
+        start_mods = self.xp.reshape(start_mods, sinogram_spatial_shape)
+        end_mods = self.xp.reshape(end_mods, sinogram_spatial_shape)
+        start_inds = self.xp.reshape(start_inds, sinogram_spatial_shape)
+        end_inds = self.xp.reshape(end_inds, sinogram_spatial_shape)
+
+        if sinogram_order is not SinogramSpatialAxisOrder.PVR:
+            if sinogram_order is SinogramSpatialAxisOrder.RVP:
+                new_order = (1,2,0)
+            elif sinogram_order is SinogramSpatialAxisOrder.RPV:
+                new_order = (1,0,2)
+            elif sinogram_order is SinogramSpatialAxisOrder.VRP:
+                new_order = (1,0,2)
+            elif sinogram_order is SinogramSpatialAxisOrder.VPR:
+                new_order = (2,0,1)
+            elif sinogram_order is SinogramSpatialAxisOrder.PRV:
+                new_order = (0,2,1)
+
+            start_mods = self.xp.permute_dims(start_mods, new_order)
+            end_mods = self.xp.permute_dims(end_mods, new_order)
+
+            start_inds = self.xp.permute_dims(start_inds, new_order)
+            end_inds = self.xp.permute_dims(end_inds, new_order)
+
+            sinogram_spatial_shape = (sinogram_spatial_shape[new_order[0]], 
+                                      sinogram_spatial_shape[new_order[1]], 
+                                      sinogram_spatial_shape[new_order[2]])
+
+        start_mods = self.xp.reshape(start_mods, (-1,))
+        start_inds = self.xp.reshape(start_inds, (-1,))
+
+        end_mods = self.xp.reshape(end_mods, (-1,))
+        end_inds = self.xp.reshape(end_inds, (-1,))
+
+        x_start = self.xp.reshape(self.scanner.get_lor_endpoints(start_mods, start_inds), sinogram_spatial_shape + (3,))
+        x_end = self.xp.reshape(self.scanner.get_lor_endpoints(end_mods, end_inds), sinogram_spatial_shape + (3,))
+
+        return x_start, x_end
+
+    def show_views(self,
                   ax: plt.Axes,
-                  view: int,
-                  plane: int,
+                  views: npt.ArrayLike,
+                  planes: npt.ArrayLike,
                   lw: float = 0.2,
                   **kwargs) -> None:
         """show all LORs of a single view in a given plane
@@ -847,21 +906,15 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
             the line width, by default 0.2
         """
 
-        start_inds = self._start_in_ring_index[view, :]
-        end_inds = self._end_in_ring_index[view, :]
-
-        start_ring = self.xp.full(start_inds.shape,
-                                  int(self._start_plane_index[plane]),
-                                  device=self.dev)
-        end_ring = self.xp.full(end_inds.shape,
-                                int(self._end_plane_index[plane]),
-                                device=self.dev)
+        xs, xe = self.get_lor_coordinates(views=views, sinogram_order=SinogramSpatialAxisOrder.RVP)
+        xs = self.xp.reshape(self.xp.take(xs, planes, axis=2), (-1,3))
+        xe = self.xp.reshape(self.xp.take(xe, planes, axis=2), (-1,3))
 
         p1s = np.asarray(
-            to_device(self.scanner.get_lor_endpoints(start_ring, start_inds),
+            to_device(xs,
                       'cpu'))
         p2s = np.asarray(
-            to_device(self.scanner.get_lor_endpoints(end_ring, end_inds),
+            to_device(xe,
                       'cpu'))
 
         ls = np.hstack([p1s, p2s]).copy()
@@ -869,99 +922,24 @@ class RegularPolygonPETCoincidenceDescriptor(PETCoincidenceDescriptor):
         lc = Line3DCollection(ls, linewidths=lw, **kwargs)
         ax.add_collection(lc)
 
+class GEDiscoveryMICoincidenceDescriptor(RegularPolygonPETCoincidenceDescriptor
+                                         ):
 
-if __name__ == '__main__':
-    import numpy.array_api as xp
-    #import array_api_compat.torch as xp
-    #import array_api_compat.cupy as xp
+    def __init__(self,
+                 xp: ModuleType,
+                 dev: str,
+                 num_rings: int = 36,
+                 radial_trim: int = 65,
+                 max_ring_difference: int | None = None,
+                 symmetry_axis: int = 2) -> None:
 
-    dev = 'cpu'
-    #dev = 'cuda'
+        scanner = GEDiscoveryMI(xp, dev,
+                                         num_rings,
+                                         symmetry_axis=symmetry_axis)
 
-    #scanner = GEDiscoveryMI(xp, dev, num_rings=9)
-    #coinc_desc = RegularPolygonPETCoincidenceDescriptor(scanner,
-    #                                                    radial_trim=121)
-
-    scanner = RegularPolygonPETScannerGeometry(xp, dev, radius = 60, num_sides = 8, 
-                                               num_lor_endpoints_per_side=4, lor_spacing= 10, num_rings = 3, 
-                                               ring_positions=xp.linspace(0, 50,3), symmetry_axis=2)
-    coinc_desc = RegularPolygonPETCoincidenceDescriptor(scanner,
-                                                        radial_trim=5,
-                                                        sinogram_spatial_axis_order=SinogramSpatialAxisOrder.RVP)
-
-
-    subset = 0
-    num_subsets = 1
-    
-    views = xp.arange(subset, coinc_desc.num_views, num_subsets)
-
-    #------------------------------------------------
-    # call of function starts here ... (views as arg)
-
-    # setup the module and in_module (in_ring) indices for all LORs in PVR order 
-
-    start_inring_inds = xp.reshape(xp.take(coinc_desc.start_in_ring_index, views, axis=0), -1)
-    end_inring_inds = xp.reshape(xp.take(coinc_desc.end_in_ring_index, views, axis=0), -1)
-
-    start_mods, start_inds = xp.meshgrid(coinc_desc.start_plane_index, start_inring_inds, indexing='ij')
-    end_mods, end_inds = xp.meshgrid(coinc_desc.end_plane_index, end_inring_inds, indexing='ij')
-
-    # reshape to PVR dimensions (radial moving fastest, planes moving slowest)
-    PVR_shape = (coinc_desc.num_planes, views.shape[0], coinc_desc.num_rad)
-    start_mods = xp.reshape(start_mods, PVR_shape)
-    end_mods = xp.reshape(end_mods, PVR_shape)
-    start_inds = xp.reshape(start_inds, PVR_shape)
-    end_inds = xp.reshape(end_inds, PVR_shape)
-
-    #### TODO reshape to other sinogram order here ...
-
-    if   coinc_desc.sinogram_spatial_axis_order is not SinogramSpatialAxisOrder.PVR:
-        if   coinc_desc.sinogram_spatial_axis_order is SinogramSpatialAxisOrder.RVP:
-            new_order = (1,2,0)
-        elif coinc_desc.sinogram_spatial_axis_order is SinogramSpatialAxisOrder.RPV:
-            new_order = (1,0,2)
-        elif coinc_desc.sinogram_spatial_axis_order is SinogramSpatialAxisOrder.VRP:
-            new_order = (1,0,2)
-        elif coinc_desc.sinogram_spatial_axis_order is SinogramSpatialAxisOrder.VPR:
-            new_order = (2,0,1)
-        elif coinc_desc.sinogram_spatial_axis_order is SinogramSpatialAxisOrder.PRV:
-            new_order = (0,2,1)
-
-        start_mods = xp.permute_dims(start_mods, new_order)
-        end_mods = xp.permute_dims(end_mods, new_order)
-
-        start_inds = xp.permute_dims(start_inds, new_order)
-        end_inds = xp.permute_dims(end_inds, new_order)
-    ####
-
-    start_mods = xp.reshape(start_mods,-1)
-    start_inds = xp.reshape(start_inds,-1)
-
-    end_mods = xp.reshape(end_mods,-1)
-    end_inds = xp.reshape(end_inds,-1)
-
-    x_start = coinc_desc.scanner.get_lor_endpoints(start_mods, start_inds)
-    x_end = coinc_desc.scanner.get_lor_endpoints(end_mods, end_inds)
-
-    #------------------------------------------------
-    nlors = 8
-
-    p1s = np.asarray(
-        to_device(x_start[:nlors,:],
-                  'cpu'))
-    p2s = np.asarray(
-        to_device(x_end[:nlors,:],
-                  'cpu'))
-
-    ls = np.hstack([p1s, p2s]).copy()
-    ls = ls.reshape((-1, 2, 3))
-    lc = Line3DCollection(ls, linewidths=0.1, color = 'r')
+        super().__init__(
+            scanner,
+            radial_trim=radial_trim,
+            max_ring_difference=max_ring_difference)
 
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    scanner.show_lor_endpoints(ax)
-    #coinc_desc.show_view(ax, 0, 0, lw=0.1, color='b')
-    #coinc_desc.show_view(ax, 50, 0, lw=0.1, color='r')
-    ax.add_collection(lc)
-    fig.show()
