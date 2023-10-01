@@ -655,7 +655,8 @@ class PETLORDescriptor(abc.ABC):
         self._scanner = scanner
 
     @abc.abstractmethod
-    def get_lor_coordinates(self, **kwargs) -> tuple[npt.ArrayLike, npt.ArrayLike]:
+    def get_lor_coordinates(self,
+                            **kwargs) -> tuple[npt.ArrayLike, npt.ArrayLike]:
         """return the start and end coordinates of all (or a subset of) LORs"""
         raise NotImplementedError
 
@@ -819,7 +820,11 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
                                                 self._end_in_ring_index,
                                                 self._end_in_ring_index + n)
 
-    def get_lor_coordinates(self, views: None | npt.ArrayLike = None, sinogram_order = SinogramSpatialAxisOrder.RVP) -> tuple[npt.ArrayLike, npt.ArrayLike]:
+    def get_lor_coordinates(
+        self,
+        views: None | npt.ArrayLike = None,
+        sinogram_order=SinogramSpatialAxisOrder.RVP
+    ) -> tuple[npt.ArrayLike, npt.ArrayLike]:
         """return the start and end coordinates of all LORs / or a subset of views
 
         Parameters
@@ -834,20 +839,27 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
         tuple[npt.ArrayLike, npt.ArrayLike]
             the start and end coordinates of all LORs / or a subset of views
             shape (:,:,:,3)
-        """        
+        """
 
         if views is None:
-            views = self.xp.arange(self.num_views)
+            views = self.xp.arange(self.num_views, device=self.dev)
 
-        # setup the module and in_module (in_ring) indices for all LORs in PVR order 
-        start_inring_inds = self.xp.reshape(self.xp.take(self.start_in_ring_index, views, axis=0), (-1,))
-        end_inring_inds = self.xp.reshape(self.xp.take(self.end_in_ring_index, views, axis=0), (-1,))
+        # setup the module and in_module (in_ring) indices for all LORs in PVR order
+        start_inring_inds = self.xp.reshape(
+            self.xp.take(self.start_in_ring_index, views, axis=0), (-1, ))
+        end_inring_inds = self.xp.reshape(
+            self.xp.take(self.end_in_ring_index, views, axis=0), (-1, ))
 
-        start_mods, start_inds = self.xp.meshgrid(self.start_plane_index, start_inring_inds, indexing='ij')
-        end_mods, end_inds = self.xp.meshgrid(self.end_plane_index, end_inring_inds, indexing='ij')
+        start_mods, start_inds = self.xp.meshgrid(self.start_plane_index,
+                                                  start_inring_inds,
+                                                  indexing='ij')
+        end_mods, end_inds = self.xp.meshgrid(self.end_plane_index,
+                                              end_inring_inds,
+                                              indexing='ij')
 
         # reshape to PVR dimensions (radial moving fastest, planes moving slowest)
-        sinogram_spatial_shape = (self.num_planes, views.shape[0], self.num_rad)
+        sinogram_spatial_shape = (self.num_planes, views.shape[0],
+                                  self.num_rad)
         start_mods = self.xp.reshape(start_mods, sinogram_spatial_shape)
         end_mods = self.xp.reshape(end_mods, sinogram_spatial_shape)
         start_inds = self.xp.reshape(start_inds, sinogram_spatial_shape)
@@ -855,15 +867,15 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
 
         if sinogram_order is not SinogramSpatialAxisOrder.PVR:
             if sinogram_order is SinogramSpatialAxisOrder.RVP:
-                new_order = (1,2,0)
+                new_order = (1, 2, 0)
             elif sinogram_order is SinogramSpatialAxisOrder.RPV:
-                new_order = (1,0,2)
+                new_order = (1, 0, 2)
             elif sinogram_order is SinogramSpatialAxisOrder.VRP:
-                new_order = (1,0,2)
+                new_order = (1, 0, 2)
             elif sinogram_order is SinogramSpatialAxisOrder.VPR:
-                new_order = (2,0,1)
+                new_order = (2, 0, 1)
             elif sinogram_order is SinogramSpatialAxisOrder.PRV:
-                new_order = (0,2,1)
+                new_order = (0, 2, 1)
 
             start_mods = self.xp.permute_dims(start_mods, new_order)
             end_mods = self.xp.permute_dims(end_mods, new_order)
@@ -871,27 +883,31 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
             start_inds = self.xp.permute_dims(start_inds, new_order)
             end_inds = self.xp.permute_dims(end_inds, new_order)
 
-            sinogram_spatial_shape = (sinogram_spatial_shape[new_order[0]], 
-                                      sinogram_spatial_shape[new_order[1]], 
+            sinogram_spatial_shape = (sinogram_spatial_shape[new_order[0]],
+                                      sinogram_spatial_shape[new_order[1]],
                                       sinogram_spatial_shape[new_order[2]])
 
-        start_mods = self.xp.reshape(start_mods, (-1,))
-        start_inds = self.xp.reshape(start_inds, (-1,))
+        start_mods = self.xp.reshape(start_mods, (-1, ))
+        start_inds = self.xp.reshape(start_inds, (-1, ))
 
-        end_mods = self.xp.reshape(end_mods, (-1,))
-        end_inds = self.xp.reshape(end_inds, (-1,))
+        end_mods = self.xp.reshape(end_mods, (-1, ))
+        end_inds = self.xp.reshape(end_inds, (-1, ))
 
-        x_start = self.xp.reshape(self.scanner.get_lor_endpoints(start_mods, start_inds), sinogram_spatial_shape + (3,))
-        x_end = self.xp.reshape(self.scanner.get_lor_endpoints(end_mods, end_inds), sinogram_spatial_shape + (3,))
+        x_start = self.xp.reshape(
+            self.scanner.get_lor_endpoints(start_mods, start_inds),
+            sinogram_spatial_shape + (3, ))
+        x_end = self.xp.reshape(
+            self.scanner.get_lor_endpoints(end_mods, end_inds),
+            sinogram_spatial_shape + (3, ))
 
         return x_start, x_end
 
     def show_views(self,
-                  ax: plt.Axes,
-                  views: npt.ArrayLike,
-                  planes: npt.ArrayLike,
-                  lw: float = 0.2,
-                  **kwargs) -> None:
+                   ax: plt.Axes,
+                   views: npt.ArrayLike,
+                   planes: npt.ArrayLike,
+                   lw: float = 0.2,
+                   **kwargs) -> None:
         """show all LORs of a single view in a given plane
 
         Parameters
@@ -906,24 +922,21 @@ class RegularPolygonPETLORDescriptor(PETLORDescriptor):
             the line width, by default 0.2
         """
 
-        xs, xe = self.get_lor_coordinates(views=views, sinogram_order=SinogramSpatialAxisOrder.RVP)
-        xs = self.xp.reshape(self.xp.take(xs, planes, axis=2), (-1,3))
-        xe = self.xp.reshape(self.xp.take(xe, planes, axis=2), (-1,3))
+        xs, xe = self.get_lor_coordinates(
+            views=views, sinogram_order=SinogramSpatialAxisOrder.RVP)
+        xs = self.xp.reshape(self.xp.take(xs, planes, axis=2), (-1, 3))
+        xe = self.xp.reshape(self.xp.take(xe, planes, axis=2), (-1, 3))
 
-        p1s = np.asarray(
-            to_device(xs,
-                      'cpu'))
-        p2s = np.asarray(
-            to_device(xe,
-                      'cpu'))
+        p1s = np.asarray(to_device(xs, 'cpu'))
+        p2s = np.asarray(to_device(xe, 'cpu'))
 
         ls = np.hstack([p1s, p2s]).copy()
         ls = ls.reshape((-1, 2, 3))
         lc = Line3DCollection(ls, linewidths=lw, **kwargs)
         ax.add_collection(lc)
 
-class GEDiscoveryMILORDescriptor(RegularPolygonPETLORDescriptor
-                                         ):
+
+class GEDiscoveryMILORDescriptor(RegularPolygonPETLORDescriptor):
 
     def __init__(self,
                  xp: ModuleType,
@@ -933,13 +946,11 @@ class GEDiscoveryMILORDescriptor(RegularPolygonPETLORDescriptor
                  max_ring_difference: int | None = None,
                  symmetry_axis: int = 2) -> None:
 
-        scanner = GEDiscoveryMI(xp, dev,
-                                         num_rings,
-                                         symmetry_axis=symmetry_axis)
+        scanner = GEDiscoveryMI(xp,
+                                dev,
+                                num_rings,
+                                symmetry_axis=symmetry_axis)
 
-        super().__init__(
-            scanner,
-            radial_trim=radial_trim,
-            max_ring_difference=max_ring_difference)
-
-
+        super().__init__(scanner,
+                         radial_trim=radial_trim,
+                         max_ring_difference=max_ring_difference)
