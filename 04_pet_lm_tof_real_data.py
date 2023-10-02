@@ -2,7 +2,7 @@
 import argparse
 import json
 import os
-import numpy as np
+import array_api_compat.numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 from array_api_compat import to_device
@@ -11,6 +11,7 @@ from time import time
 import h5py
 import scanners
 import tof
+import utils
 import parallelproj
 
 parser = argparse.ArgumentParser()
@@ -76,6 +77,7 @@ num_ax = 71
 # scanner properties
 symmetry_axis = args.symmetry_axis
 fwhm_mm_recon = 4.5
+sigma_recon = fwhm_mm_recon / (2.35 * float(voxel_size[0]))
 tof_parameters = tof.ge_discovery_mi_tof_parameters
 
 # reconstruction parameters
@@ -135,6 +137,7 @@ sens_image = parallelproj.joseph3d_back(xstart_all,
                                         all_multiplicative_factors,
                                         threadsperblock=threadsperblock)
 
+sens_image = utils.gauss_smooth(sens_image, sigma_recon, xp, dev)
 t1 = time()
 print(f'time to calculate non-tof adjoint ones {(t1-t0):.2F}s')
 
@@ -228,7 +231,7 @@ for i_iter in range(num_iterations):
             i_sub::num_subsets] * parallelproj.joseph3d_fwd_tof_lm(
                 xstart[i_sub::num_subsets, :],
                 xend[i_sub::num_subsets, :],
-                image,
+                utils.gauss_smooth(image, sigma_recon, xp, dev),
                 image_origin,
                 voxel_size,
                 tof_parameters.tofbin_width,
@@ -258,7 +261,9 @@ for i_iter in range(num_iterations):
                 num_subsets],  # work-round to get get a C-contiguous subset array
             threadsperblock=threadsperblock)
 
-        image *= (tmp / subset_corrected_sens_image)
+        image *= (utils.gauss_smooth(tmp, sigma_recon, xp, dev) /
+                  subset_corrected_sens_image)
+
     tb = time()
     iteration_times.append(tb - ta)
 
