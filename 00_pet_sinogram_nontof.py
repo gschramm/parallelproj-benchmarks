@@ -1,40 +1,50 @@
 import time
 import argparse
 import os
-from pathlib import Path
-import numpy as np
 import scanners
+import pandas as pd
+import parallelproj
+
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_runs', type=int, default=5)
 parser.add_argument('--num_subsets', type=int, default=34)
-parser.add_argument('--mode', default='GPU', choices=['GPU', 'CPU', 'hybrid'])
+parser.add_argument('--mode', default='GPU', choices=['GPU', 'GPU-torch', 'CPU', 'CPU-torch', 'hybrid'])
 parser.add_argument('--threadsperblock', type=int, default=32)
 parser.add_argument('--output_file', type=int, default=None)
 parser.add_argument('--output_dir', default='results')
 args = parser.parse_args()
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-import numpy.array_api as xp
-dev = 'cpu'
+if args.mode == 'GPU':
+    if not parallelproj.cuda_present:
+        raise ValueError('CUDA not present')
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    import array_api_compat.cupy as xp
+    dev = 'cpu'
+elif args.mode == 'GPU-torch':
+    if not parallelproj.cuda_present:
+        raise ValueError('CUDA not present')
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    import array_api_compat.torch as xp
+    dev = 'cpu'
+elif args.mode == 'hybrid':
+    if not parallelproj.cuda_present:
+        raise ValueError('CUDA not present')
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    import array_api_compat.numpy as xp
+    dev = 'cpu'
+elif args.mode == 'CPU':
+    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    import array_api_compat.numpy as xp
+    dev = 'cpu'
+elif args.mode == 'CPU-torch':
+    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    import array_api_compat.torch as xp
+    dev = 'cpu'
+else:
+    raise ValueError
 
-#if args.mode == 'GPU':
-#    import cupy as cp
-#    xp = cp
-#    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-#elif args.mode == 'hybrid':
-#    xp = np
-#    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-#elif args.mode == 'CPU':
-#    xp = np
-#    os.environ['CUDA_VISIBLE_DEVICES'] = ''
-#else:
-#    raise ValueError
-
-import pandas as pd
-import parallelproj
-#import pyparallelproj.coincidences as coincidences
-#import pyparallelproj.subsets as subsets
 
 num_runs = args.num_runs
 threadsperblock = args.threadsperblock
@@ -54,8 +64,10 @@ num_rings = 36
 
 #---------------------------------------------------------------------
 #sinogram_orders = ('PVR', 'PRV', 'VPR', 'VRP', 'RPV', 'RVP')
+#symmetry_axes = (0, 1, 2)
+
 sinogram_orders = ('PVR', 'PRV')
-symmetry_axes = (0, 1, 2)
+symmetry_axes = (0, 2)
 
 df = pd.DataFrame()
 
@@ -122,7 +134,7 @@ for ia, symmetry_axis in enumerate(symmetry_axes):
                         'sinogram order':
                         sinogram_order,
                         'symmetry axis':
-                        symmetry_axis,
+                        str(symmetry_axis),
                         'run':
                         ir,
                         't forward (s)':
@@ -142,3 +154,44 @@ df['threadsperblock'] = threadsperblock
 
 Path(output_dir).mkdir(exist_ok=True, parents=True)
 df.to_csv(os.path.join(output_dir, output_file), index=False)
+
+
+#----------------------------------------------------------------------------
+# show results
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_context('paper')
+
+df['t forward+back (s)'] = df['t forward (s)'] + df['t back (s)']
+
+fig, ax = plt.subplots(1, 3, figsize=(7, 7/3), sharex=False, sharey='row')
+
+bplot_kwargs = dict(capsize=0.15, errwidth=1.5, errorbar='sd')
+
+sns.barplot(data=df,
+            x='sinogram order',
+            y='t forward (s)',
+            hue='symmetry axis',
+            ax=ax[0],
+            **bplot_kwargs)
+sns.barplot(data=df,
+            x='sinogram order',
+            y='t back (s)',
+            hue='symmetry axis',
+            ax=ax[1],
+            **bplot_kwargs)
+sns.barplot(data=df,
+            x='sinogram order',
+            y='t forward+back (s)',
+            hue='symmetry axis',
+            ax=ax[2],
+            **bplot_kwargs)
+
+sns.move_legend(ax[0], "upper right", ncol=2)
+for i, axx in enumerate(ax.ravel()):
+    axx.grid(ls=':')
+    if i > 0:
+        axx.get_legend().remove()
+
+fig.show()
+

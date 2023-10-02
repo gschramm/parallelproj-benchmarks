@@ -11,6 +11,8 @@ dependencies:
   - scipy
   - ipython
   - array-api-compat
+  - seaborn
+  - matplotlib
 
   # optional for GPU mode
   # - cupy
