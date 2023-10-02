@@ -78,7 +78,7 @@ df = pd.DataFrame()
 for ia, symmetry_axis in enumerate(symmetry_axes):
     lor_descriptor = scanners.GEDiscoveryMILORDescriptor(xp,
                                                          dev,
-                                                         symmetry_axis=2)
+                                                         symmetry_axis=symmetry_axis)
     views = xp.arange(0, lor_descriptor.num_views, num_subsets, device=dev)
 
     # setup a box like test image
