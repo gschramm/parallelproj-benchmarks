@@ -230,7 +230,9 @@ for i_iter in range(num_iterations):
                 sigma_tof,
                 tofcenter_offset,
                 tof_parameters.num_sigmas,
-                tofbin[i_sub::num_subsets],
+                1. * tofbin[
+                    i_sub::
+                    num_subsets],  # work-round to get get a C-contiguous subset array
                 threadsperblock=threadsperblock
             ) + contamination_list[i_sub::num_subsets]
 
@@ -246,7 +248,9 @@ for i_iter in range(num_iterations):
             sigma_tof,
             tofcenter_offset,
             tof_parameters.num_sigmas,
-            tofbin[i_sub::num_subsets],
+            1. * tofbin[
+                i_sub::
+                num_subsets],  # work-round to get get a C-contiguous subset array
             threadsperblock=threadsperblock)
 
         image *= (tmp / subset_corrected_sens_image)
