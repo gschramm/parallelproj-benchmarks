@@ -115,8 +115,10 @@ if Path(args.corr_file).exists():
         all_multiplicative_factors = xp.asarray(data['all_xtals/atten'][:] *
                                                 data['all_xtals/sens'][:],
                                                 device=dev)
-        all_xtals = xp.asarray(data['all_xtals/xtal_ids'][:][:, [1, 0, 3, 2]],
-                               device=dev)
+        all_xtals = xp.asarray(
+            data['all_xtals/xtal_ids'][:][:, [1, 0, 3, 2]],
+            device=dev,
+            dtype=int)  # int16 does not work for torch GPU arrays
 else:
     raise ValueError(f'file {args.corr_file} does not exist')
 
@@ -137,7 +139,8 @@ t1 = time()
 print(f'time to calculate non-tof adjoint ones {(t1-t0):.2F}s')
 
 # replace zeros (outside FOV) with small value to avoid NaNs
-sens_image = xp.where(sens_image < 1e-7, 1e-7, sens_image)
+sens_image = xp.where(sens_image < 1e-7, xp.asarray([1e-7], device=dev),
+                      sens_image)
 
 del xstart_all
 del xend_all
@@ -152,7 +155,9 @@ del all_xtals
 
 if Path(args.lm_file).exists():
     with h5py.File(args.lm_file, 'r') as data:
-        events = xp.asarray(data['MiceList/TofCoinc'][:], device=dev)
+        events = xp.asarray(
+            data['MiceList/TofCoinc'][:], device=dev,
+            dtype=int)  # int16 does not work for torch GPU arrays
 else:
     raise ValueError(f'file {args.lm_file} does not exist')
 
