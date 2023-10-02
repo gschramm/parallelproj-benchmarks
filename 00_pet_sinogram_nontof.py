@@ -34,7 +34,7 @@ elif args.mode == 'GPU-torch':
         raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.torch as xp
-    dev = 'cpu'
+    dev = 'cuda'
 elif args.mode == 'hybrid':
     if not parallelproj.cuda_present:
         raise ValueError('CUDA not present')
@@ -58,7 +58,7 @@ num_subsets = args.num_subsets
 
 output_dir = args.output_dir
 if args.output_file is None:
-    output_file = f'nontofsinogram__mode_{args.mode}__numruns_{num_runs}__tpb_{threadsperblock}__numsubsets_{num_subsets}.csv'
+    output_file = f'nontof_sinogram__mode_{args.mode}__numruns_{num_runs}__tpb_{threadsperblock}__numsubsets_{num_subsets}.csv'
 
 # image properties
 num_trans = 215
@@ -76,9 +76,8 @@ symmetry_axes = [int(x) for x in args.symmetry_axes]
 df = pd.DataFrame()
 
 for ia, symmetry_axis in enumerate(symmetry_axes):
-    lor_descriptor = scanners.GEDiscoveryMILORDescriptor(xp,
-                                                         dev,
-                                                         symmetry_axis=symmetry_axis)
+    lor_descriptor = scanners.GEDiscoveryMILORDescriptor(
+        xp, dev, symmetry_axis=symmetry_axis)
     views = xp.arange(0, lor_descriptor.num_views, num_subsets, device=dev)
 
     # setup a box like test image
@@ -124,8 +123,7 @@ for ia, symmetry_axis in enumerate(symmetry_axes):
             t1 = time.time()
 
             # perform a complete backprojection
-            back_img = xp.zeros(img.shape, dtype=xp.float32)
-            ones = xp.ones(img_fwd.shape, dtype=xp.float32)
+            ones = xp.ones(img_fwd.shape, dtype=xp.float32, device=dev)
             t2 = time.time()
             back_img = parallelproj.joseph3d_back(
                 xstart,
