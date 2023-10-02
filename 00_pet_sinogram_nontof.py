@@ -28,7 +28,7 @@ if args.mode == 'GPU':
         raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.cupy as xp
-    dev = 'cpu'
+    dev = 'cuda'
 elif args.mode == 'GPU-torch':
     if not parallelproj.cuda_present:
         raise ValueError('CUDA not present')
