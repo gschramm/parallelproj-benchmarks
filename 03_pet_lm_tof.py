@@ -56,7 +56,7 @@ num_events = args.num_events
 num_runs = args.num_runs
 threadsperblock = args.threadsperblock
 
-data_str = 'nontof_listmode'
+data_str = 'tof_listmode'
 if args.presort:
     data_str += '_presorted'
 

@@ -54,7 +54,7 @@ num_subsets = args.num_subsets
 
 output_dir = args.output_dir
 if args.output_file is None:
-    output_file = f'nontof_sinogram__mode_{args.mode}__numruns_{num_runs}__tpb_{threadsperblock}__numsubsets_{num_subsets}.csv'
+    output_file = f'tof_sinogram__mode_{args.mode}__numruns_{num_runs}__tpb_{threadsperblock}__numsubsets_{num_subsets}.csv'
 
 # image properties
 num_trans = 215

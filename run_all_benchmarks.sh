@@ -49,5 +49,9 @@ do
     python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode GPU --threadsperblock 32 --symmetry_axis ${SA}
     python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode hybrid --threadsperblock 32 --symmetry_axis ${SA}
     python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode CPU --threadsperblock 32 --symmetry_axis ${SA}
+
+    python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode GPU --threadsperblock 32 --symmetry_axis ${SA} --presort
+    python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode hybrid --threadsperblock 32 --symmetry_axis ${SA} --presort
+    python 04_pet_lm_tof_real_data.py --num_events ${NUM_EVENTS} --mode CPU --threadsperblock 32 --symmetry_axis ${SA} --presort
   done
 done
