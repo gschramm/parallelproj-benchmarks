@@ -12,7 +12,6 @@ import h5py
 import scanners
 import tof
 import utils
-import parallelproj
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lm_file', type=str, default='data/LIST0000.BLF')
@@ -35,20 +34,14 @@ presort = args.presort
 post_sm_fwhm = args.post_sm_fwhm
 
 if args.mode == 'GPU':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.cupy as xp
     dev = 'cuda'
 elif args.mode == 'GPU-torch':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.torch as xp
     dev = 'cuda'
 elif args.mode == 'hybrid':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.numpy as xp
     dev = 'cpu'
@@ -62,6 +55,8 @@ elif args.mode == 'CPU-torch':
     dev = 'cpu'
 else:
     raise ValueError
+
+import parallelproj
 
 np.random.seed(0)
 

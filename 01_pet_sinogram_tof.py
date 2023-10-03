@@ -4,7 +4,6 @@ import os
 import scanners
 import tof
 import pandas as pd
-import parallelproj
 
 from pathlib import Path
 
@@ -25,20 +24,14 @@ parser.add_argument('--symmetry_axes', default=['0', '1', '2'], nargs='+')
 args = parser.parse_args()
 
 if args.mode == 'GPU':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.cupy as xp
     dev = 'cuda'
 elif args.mode == 'GPU-torch':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.torch as xp
     dev = 'cuda'
 elif args.mode == 'hybrid':
-    if not parallelproj.cuda_present:
-        raise ValueError('CUDA not present')
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import array_api_compat.numpy as xp
     dev = 'cpu'
@@ -52,6 +45,8 @@ elif args.mode == 'CPU-torch':
     dev = 'cpu'
 else:
     raise ValueError
+
+import parallelproj
 
 num_runs = args.num_runs
 threadsperblock = args.threadsperblock
