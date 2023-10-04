@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 import json
 import pandas as pd
 import seaborn as sns
@@ -38,6 +39,10 @@ df['# events (1e6)'] = df['num_events'] / 1000000
 
 if norm:
     df['iteration time (s)'] /= df['# events (1e6)']
+
+print(
+    df.groupby(['mode', '# events (1e6)',
+                'symmetry axis'])['iteration time (s)'].apply(np.mean))
 
 fig, ax = plt.subplots(1, 3, figsize=(7, 7 / 3), sharex=True)
 

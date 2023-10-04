@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -35,6 +36,10 @@ for result_file in (fnames_cpu + fnames_hybrid + fnames_gpu):
 
 df['symmetry axis'] = df['symmetry axis'].astype(str)
 df['t forward+back (s)'] = df['t forward (s)'] + df['t back (s)']
+
+print(
+    df.groupby(['mode', 'sinogram order',
+                'symmetry axis'])['t forward+back (s)'].apply(np.mean))
 
 fig, ax = plt.subplots(3, 3, figsize=(7, 7), sharex=False, sharey='row')
 

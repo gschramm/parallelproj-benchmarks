@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -44,6 +45,10 @@ if norm:
     df['t back (s)'] /= df['# events (1e6)']
 
 df['t forward+back (s)'] = df['t forward (s)'] + df['t back (s)']
+
+print(
+    df.groupby(['mode', '# events (1e6)',
+                'symmetry axis'])['t forward+back (s)'].apply(np.mean))
 
 fig, ax = plt.subplots(3, 3, figsize=(7, 7), sharex=False, sharey='row')
 
