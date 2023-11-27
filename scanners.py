@@ -640,6 +640,28 @@ class GEDiscoveryMI(RegularPolygonPETScannerGeometry):
                          ring_positions=ring_positions,
                          symmetry_axis=symmetry_axis)
 
+class SiemensMMR(RegularPolygonPETScannerGeometry):
+
+    def __init__(self,
+                 xp: ModuleType,
+                 dev: str,
+                 num_rings: int = 64,
+                 symmetry_axis: int = 2) -> None:
+
+        ring_positions = 4.0625 * xp.arange(
+            num_rings, device=dev, dtype=xp.float32)
+        ring_positions -= 0.5 * xp.max(ring_positions)
+        super().__init__(xp,
+                         dev,
+                         radius=328. + 7., # 328mm radius + 7mm DOI
+                         num_sides=56,
+                         num_lor_endpoints_per_side=8,
+                         lor_spacing=4.0625,
+                         num_rings=num_rings,
+                         ring_positions=ring_positions,
+                         symmetry_axis=symmetry_axis)
+
+
 
 class PETLORDescriptor(abc.ABC):
     """abstract base class to describe which modules / indices in modules of a 
@@ -950,6 +972,25 @@ class GEDiscoveryMILORDescriptor(RegularPolygonPETLORDescriptor):
                                 dev,
                                 num_rings,
                                 symmetry_axis=symmetry_axis)
+
+        super().__init__(scanner,
+                         radial_trim=radial_trim,
+                         max_ring_difference=max_ring_difference)
+
+class SiemensMMRLORDescriptor(RegularPolygonPETLORDescriptor):
+
+    def __init__(self,
+                 xp: ModuleType,
+                 dev: str,
+                 num_rings: int = 64,
+                 radial_trim: int = 65,
+                 max_ring_difference: int | None = None,
+                 symmetry_axis: int = 2) -> None:
+
+        scanner = SiemensMMR(xp,
+                             dev,
+                             num_rings,
+                             symmetry_axis=symmetry_axis)
 
         super().__init__(scanner,
                          radial_trim=radial_trim,
