@@ -1,0 +1,23 @@
+copy_image                      	                   1.800	                   1.817
+copy_proj_data_mem_to_mem       	                   3.000	                  18.229
+copy_proj_data_mem_to_file      	                  20.750	                  48.950
+copy_proj_data_file_to_mem      	                  13.000	                  31.164
+copy_proj_data_file_to_file     	                   8.500	                  38.678
+PMRT_projector_setup            	                 172.000	                   5.621
+PMRT_forward_file_first         	               19540.000	                 677.932
+PMRT_forward_file               	               15150.000	                 490.229
+PMRT_forward_memory             	               14580.000	                 454.476
+PMRT_back_file_first            	               16010.000	                1227.834
+PMRT_back_file                  	               17250.000	                 606.885
+PMRT_back_memory                	               17540.000	                 620.611
+PMRT_LogLik set_up              	               23030.000	                 843.772
+PMRT_LogLik grad_no_sens        	               32640.000	                1098.599
+PP_projector_setup              	                1070.000	                 170.483
+PP_forward_file_first           	                 770.000	                 157.710
+PP_forward_file                 	                 835.000	                  57.976
+PP_forward_memory               	                 799.500	                  56.965
+PP_back_file_first              	                2310.000	                 983.486
+PP_back_file                    	                1554.000	                 193.938
+PP_back_memory                  	                1367.000	                 187.384
+PP_LogLik set_up                	                2790.000	                 450.427
+PP_LogLik grad_no_sens          	                2290.000	                 247.033
